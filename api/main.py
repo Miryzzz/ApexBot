@@ -25,13 +25,15 @@ MAP_TRANSLATION = {
 }
 
 MAP_IMAGES = {
-    "World's Edge": "https://apexlegendsstatus.com/assets/maps/Worlds_Edge.png",
-    "Storm Point": "https://apexlegendsstatus.com/assets/maps/Storm_Point.png",
-    "Broken Moon": "https://apexlegendsstatus.com/assets/maps/Broken_Moon.png",
-    "Olympus": "https://apexlegendsstatus.com/assets/maps/Olympus.png",
-    "Kings Canyon": "https://apexlegendsstatus.com/assets/maps/Kings_Canyon.png",
-    "E-District": "https://apexlegendsstatus.com/assets/maps/District.png"
+    "World's Edge": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/a/a5/Loading_Worlds_Edge_MU3.png",
+    "Storm Point": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/4/4a/Loading_Storm_Point_MU2.png",
+    "Broken Moon": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/d/db/Loading_Broken_Moon_MU1.png",
+    "Olympus": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/e/e1/Loading_Olympus_MU2.png",
+    "Kings Canyon": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/1/14/Loading_Kings_Canyon_MU4.png",
+    "E-District": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/4/4b/Loading_E-District.png"
 }
+
+DEFAULT_MAP_IMG = "https://images.wallpapersden.com/image/download/apex-legends-all-characters_bWptZ2mUmZqaraWkpJRmbmdlrWZlbWU.jpg"
 
 # --- 2. МЕНЮ ---
 
@@ -68,23 +70,53 @@ async def show_pred(message: types.Message):
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, timeout=15) as response:
-                data = await response.json()
-                pc = data.get('RP', {}).get('PC', {})
+                # 1. Проверяем статус ответа
+                if response.status != 200:
+                    await message.answer(f"📡 Сервер API ответил ошибкой (Код: {response.status}).")
+                    return
+
+                res_text = await response.text()
+                
+                # 2. Проверяем на лимиты (Rate Limit)
+                if "Slow down" in res_text or "Too many requests" in res_text:
+                    await message.answer("⏳ **Слишком много запросов!** Подождите 10-15 секунд.")
+                    return
+
+                # 3. Пытаемся распарсить JSON
+                try:
+                    data = json.loads(res_text)
+                except json.JSONDecodeError:
+                    await message.answer("⚠️ Не удалось прочитать данные от сервера (ошибка JSON).")
+                    return
+
+                # 4. Извлекаем данные для PC
+                rp_data = data.get('RP', {})
+                pc = rp_data.get('PC', {})
+                
+                if not pc:
+                    await message.answer("❌ Данные о рангах временно отсутствуют в базе API.")
+                    return
+
+                val = pc.get('val', 'N/A')
+                total = pc.get('totalMastersAndPreds', 'N/A')
+                
                 caption = (
-                    "🎖 **Лимиты Predator (PC):**\n\n"
-                    f"🔴 Порог: `{pc.get('val', 'N/A')}` RP\n"
-                    f"🟣 Мастеров/Хищников: `{pc.get('totalMastersAndPreds', 'N/A')}`"
+                    "🎖 **ЛИМИТЫ ХИЩНИКОВ (PC):**\n\n"
+                    f"🔴 **Порог Predator:** `{val}` RP\n"
+                    f"🟣 **Мастеров и Хищников:** `{total}`\n\n"
+                    "Данные обновляются раз в несколько минут."
                 )
                 
                 img = "https://apexlegendsstatus.com/assets/ranks/apex_predator.png"
                 try:
-                    # Пробуем отправить с картинкой
                     await message.answer_photo(photo=img, caption=caption, parse_mode="Markdown")
                 except Exception:
-                    # Если Telegram ругается на тип файла (wrong type), шлем просто текст
                     await message.answer(caption, parse_mode="Markdown")
-        except:
-            await message.answer("⚠️ Не удалось загрузить данные рейтинга.")
+
+        except asyncio.TimeoutError:
+            await message.answer("⏳ Время ожидания истекло. Сервер API слишком долго не отвечал.")
+        except Exception as e:
+            await message.answer(f"⚠️ Ошибка связи: `{str(e)[:50]}`")
 
 @dp.message(F.text == "🗺 Карты")
 @dp.message(Command("map"))
@@ -94,26 +126,36 @@ async def show_maps(message: types.Message):
         try:
             async with session.get(url, timeout=15) as response:
                 res_text = await response.text()
-                data = json.loads(res_text)
                 
+                if "Slow down" in res_text:
+                    return await message.answer("⏳ Лимит! Подождите 10 сек.")
+                
+                data = json.loads(res_text)
                 br = data.get('battle_royale', {}).get('current', {})
                 rnk = data.get('ranked', {}).get('current', {})
-                m_name = rnk.get('map', 'Unknown')
+                
+                # Карта для отображения картинки (берем из рейтинга)
+                map_name_raw = rnk.get('map', 'Unknown')
                 
                 caption = (
-                    f"🎮 **Паблик:** {MAP_TRANSLATION.get(br.get('map'), br.get('map'))}\n"
-                    f"⏱ Смена через: `{br.get('remainingTimer')}`\n\n"
-                    f"🏆 **Рейтинг:** {MAP_TRANSLATION.get(m_name, m_name)}\n"
+                    f"🎮 **ОБЫЧНЫЕ:** {MAP_TRANSLATION.get(br.get('map'), br.get('map'))}\n"
+                    f"⏱ Осталось: `{br.get('remainingTimer')}`\n\n"
+                    f"🏆 **РЕЙТИНГ:** {MAP_TRANSLATION.get(map_name_raw, map_name_raw)}\n"
                     f"⏱ До смены: `{rnk.get('remainingTimer')}`"
                 )
                 
-                img = MAP_IMAGES.get(m_name, "https://apexlegendsstatus.com/assets/maps/Worlds_Edge.png")
+                # Пробуем найти картинку по названию
+                img_url = MAP_IMAGES.get(map_name_raw, DEFAULT_MAP_IMG)
+                
                 try:
-                    await message.answer_photo(photo=img, caption=caption, parse_mode="Markdown")
-                except Exception:
+                    # Пытаемся отправить фото
+                    await message.answer_photo(photo=img_url, caption=caption, parse_mode="Markdown")
+                except Exception as e:
+                    # Если Telegram все равно не ест ссылку, шлем текст и пишем в логи причину
+                    print(f"Photo error: {e}")
                     await message.answer(caption, parse_mode="Markdown")
-        except:
-            await message.answer("⚠️ Ошибка API карт. Попробуйте снова.")
+        except Exception as e:
+            await message.answer(f"⚠️ Ошибка API: `{str(e)[:50]}`")
             
             
 @dp.message(F.text == "📊 Мета Легенд")
