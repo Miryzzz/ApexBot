@@ -63,6 +63,7 @@ async def cmd_start(message: types.Message):
 # --- КНОПКИ МЕНЮ ---
 
 @dp.message(F.text == "🗺 Карты")
+@dp.message(Command("map"))
 async def show_maps(message: types.Message):
     url = f"https://api.mozambiquehe.re/maprotation?auth={APEX_API_KEY}&version=2"
     async with aiohttp.ClientSession() as session:
@@ -101,6 +102,7 @@ async def show_maps(message: types.Message):
 
 
 @dp.message(F.text == "🏆 Рейтинг (RP)")
+@dp.message(Command("predator"))
 async def show_predator(message: types.Message):
     url = f"https://api.mozambiquehe.re/predator?auth={APEX_API_KEY}"
     pred_img = "https://apexlegendsstatus.com/assets/ranks/apex_predator.png"
@@ -136,11 +138,12 @@ async def show_predator(message: types.Message):
             
             
 @dp.message(F.text == "📊 Мета Легенд")
+@dp.message(Command("meta"))
 async def show_meta(message: types.Message):
     meta_img = "https://images.wallpapersden.com/image/download/apex-legends-bloodhound-loba-and-caustic-skin_bmZuamWUmZqaraWkpJRmbmdlrWZlbWU.jpg"
     
     caption = (
-        "📊 **АКТУАЛЬНАЯ МЕТА (Сезон 23):**\n\n"
+        "📊 **АКТУАЛЬНАЯ МЕТА:**\n\n"
         "🔥 **S-Тир:** Lifeline, Newcastle, Revenant\n"
         "⚡️ **A-Тир:** Octane, Pathfinder, Horizon\n"
         "🛡 **B-Тир:** Bangalore, Wattson, Conduit\n\n"
@@ -150,6 +153,7 @@ async def show_meta(message: types.Message):
 
 
 @dp.message(F.text == "📰 Новости")
+@dp.message(Command("news"))
 async def show_news(message: types.Message):
     url = f"https://api.mozambiquehe.re/news?auth={APEX_API_KEY}"
     async with aiohttp.ClientSession() as session:
@@ -171,6 +175,7 @@ async def show_news(message: types.Message):
 
 
 @dp.message(F.text == "🛒 Магазин")
+@dp.message(Command("store"))
 async def show_store(message: types.Message):
     await message.answer(
         "🛒 Полный ассортимент доступен только в игре.\nПроверяй ротацию бандлов каждый вторник!"
@@ -178,6 +183,7 @@ async def show_store(message: types.Message):
 
 # --- 1. ОБРАБОТКА КНОПКИ В МЕНЮ ---
 @dp.message(F.text == "📊 Статистика")
+@dp.message(Command("stat"))
 async def stats_help(message: types.Message):
     await message.answer(
         "Чтобы узнать статистику, введите команду и ник игрока через пробел.\n\n"
