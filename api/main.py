@@ -9,11 +9,12 @@ from aiogram.types import Update
 from http.server import BaseHTTPRequestHandler
 
 # --- НАСТРОЙКИ ---
-TELEGRAM_TOKEN = os.getenv("8205546825:AAE_f2o4Flap-omNJK_6R61iHHZjEbbghsE")
-APEX_API_KEY = os.getenv("8205546825:AAE_f2o4Flap-omNJK_6R61iHHZjEbbghsE")
+TELEGRAM_TOKEN = "8205546825:AAE_f2o4Flap-omNJK_6R61iHHZjEbbghsE"
+APEX_API_KEY = "02bc8279638509d6997130e7fc25273f"
 
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
+
 
 MAP_TRANSLATION = {
     "World's Edge": "Край Света",
