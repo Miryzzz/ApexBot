@@ -2,7 +2,7 @@ import asyncio
 import json
 import aiohttp
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import Command
+from aiogram.filters import Command, or_f 
 from aiogram.types import Update, ReplyKeyboardMarkup, KeyboardButton
 from http.server import BaseHTTPRequestHandler
 
@@ -46,33 +46,32 @@ def get_main_menu():
 async def cmd_start(message: types.Message):
     await message.answer("🚀 **Apex Syndicate на связи!**", reply_markup=get_main_menu())
 
-@dp.message(F.text == "🗺 Карты", Command("map"))
+@dp.message(or_f(F.text == "🗺 Карты", Command("map")))
 async def show_maps(message: types.Message):
+    # ... твой код логики ...
     url = f"https://api.mozambiquehe.re/maprotation?auth={APEX_API_KEY}&version=2"
+    # (далее без изменений)
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, timeout=15) as response:
                 res_text = await response.text()
                 data = json.loads(res_text)
-                
                 br = data.get('battle_royale', {}).get('current', {})
                 rnk = data.get('ranked', {}).get('current', {})
                 m_name = rnk.get('map', 'Unknown')
-                
                 caption = (f"🎮 **Паблик:** {MAP_TRANSLATION.get(br.get('map'), br.get('map'))}\n"
                            f"⏱ Смена через: `{br.get('remainingTimer')}`\n\n"
                            f"🏆 **Рейтинг:** {MAP_TRANSLATION.get(m_name, m_name)}\n"
                            f"⏱ До смены: `{rnk.get('remainingTimer')}`")
-                
                 img = MAP_IMAGES.get(m_name, "https://apexlegendsstatus.com/assets/maps/Worlds_Edge.png")
                 try:
                     await message.answer_photo(photo=img, caption=caption, parse_mode="Markdown")
                 except:
                     await message.answer(caption, parse_mode="Markdown")
         except:
-            await message.answer("⚠️ Ошибка API карт. Подождите 10 секунд.")
+            await message.answer("⚠️ Ошибка API карт.")
 
-@dp.message(F.text == "🏆 Рейтинг (RP)", Command("predator"))
+@dp.message(or_f(F.text == "🏆 Рейтинг (RP)", Command("predator")))
 async def show_pred(message: types.Message):
     url = f"https://api.mozambiquehe.re/predator?auth={APEX_API_KEY}"
     async with aiohttp.ClientSession() as session:
@@ -90,8 +89,9 @@ async def show_pred(message: types.Message):
                     await message.answer(caption, parse_mode="Markdown")
         except:
             await message.answer("⚠️ Не удалось загрузить рейтинг.")
+            pass
 
-@dp.message(F.text == "📊 Мета Легенд", Command("meta"))
+@dp.message(or_f(F.text == "📊 Мета Легенд", Command("meta")))
 async def show_meta(message: types.Message):
     text = "📊 **Мета:**\n🔥 S: Newcastle, Lifeline\n⚡️ A: Pathfinder, Horizon"
     img = "https://images.wallpapersden.com/image/download/apex-legends-all-characters_bWptZ2mUmZqaraWkpJRmbmdlrWZlbWU.jpg"
