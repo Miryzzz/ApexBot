@@ -125,36 +125,27 @@ async def show_maps(message: types.Message):
     url = f"https://api.mozambiquehe.re/maprotation?auth={APEX_API_KEY}&version=2"
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, timeout=15) as response:
-                # Читаем текст, чтобы поймать ошибку лимита
-                res_text = await response.text()
-                if "Slow down" in res_text:
-                    await message.answer("⏳ Слишком много запросов! Подождите 10 секунд.")
-                    return
-                
-                data = json.loads(res_text)
+            async with session.get(url, timeout=10) as response:
+                data = await response.json()
                 br = data.get('battle_royale', {}).get('current', {})
                 rnk = data.get('ranked', {}).get('current', {})
                 
-                current_ranked_map = rnk.get('map', 'Unknown')
-                
-                caption = (
-                    f"🎮 **ОБЫЧНЫЕ:** {MAP_TRANSLATION.get(br.get('map'), br.get('map'))}\n"
-                    f"⏳ Осталось: `{br.get('remainingTimer')}`\n\n"
-                    f"🏆 **РЕЙТИНГ:** {MAP_TRANSLATION.get(current_ranked_map, current_ranked_map)}\n"
-                    f"⏳ Смена через: `{rnk.get('remainingTimer')}`"
+                pub_map = br.get('map', 'Unknown')
+                rank_map = rnk.get('map', 'Unknown')
+
+                text = (
+                    "🗺 **ТЕКУЩАЯ РОТАЦИЯ**\n\n"
+                    "🎮 **Обычные матчи:**\n"
+                    f"📍 Карта: **{MAP_TRANSLATION.get(pub_map, pub_map)}**\n"
+                    f"⏱ Осталось: `{br.get('remainingTimer')}`\n\n"
+                    "━━━━━━━━━━━━━━\n\n"
+                    "🏆 **Рейтинговые матчи:**\n"
+                    f"📍 Карта: **{MAP_TRANSLATION.get(rank_map, rank_map)}**\n"
+                    f"⏱ До смены: `{rnk.get('remainingTimer')}`"
                 )
-
-                # Выбираем картинку из нашего словаря
-                photo_url = MAP_IMAGES.get(current_ranked_map, "https://media.contentapi.ea.com/content/dam/apex-legends/common/apex-legends-logo-desktop.svg")
-
-                try:
-                    await message.answer_photo(photo=photo_url, caption=caption, parse_mode="Markdown")
-                except Exception as e:
-                    # Если фото всё равно не уходит, отправляем хотя бы текст
-                    await message.answer(f"{caption}\n\n⚠️ (Картинка не загрузилась: {str(e)[:30]})", parse_mode="Markdown")
-        except Exception as e:
-            await message.answer(f"⚠️ Ошибка API: `{str(e)[:50]}`")
+                await message.answer(text, parse_mode="Markdown")
+        except:
+            await message.answer("⚠️ Ошибка API. Попробуйте чуть позже.")
             
             
 @dp.message(F.text == "📊 Мета Легенд")
