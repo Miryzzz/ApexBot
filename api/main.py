@@ -25,12 +25,13 @@ MAP_TRANSLATION = {
 }
 
 MAP_IMAGES = {
-    "World's Edge": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/a/a5/Loading_Worlds_Edge_MU3.png",
-    "Storm Point": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/4/4a/Loading_Storm_Point_MU2.png",
-    "Broken Moon": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/d/db/Loading_Broken_Moon_MU1.png",
-    "Olympus": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/e/e1/Loading_Olympus_MU2.png",
-    "Kings Canyon": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/1/14/Loading_Kings_Canyon_MU4.png",
-    "E-District": "https://static.wikia.nocookie.net/apexlegends_gamepedia_en/images/4/4b/Loading_E-District.png"
+    "World's Edge": "https://i.imgur.com/7Yf8Y8W.png",
+    "Storm Point": "https://i.imgur.com/GzBfHjV.png",
+    "Broken Moon": "https://i.imgur.com/6XwYj2Y.png",
+    "Olympus": "https://i.imgur.com/8Fp7VPr.png",
+    "Kings Canyon": "https://i.imgur.com/vH9Z8G1.png",
+    "E-District": "https://i.imgur.com/H0V2DSu.png",
+    "District": "https://i.imgur.com/H0V2DSu.png"
 }
 
 DEFAULT_MAP_IMG = "https://images.wallpapersden.com/image/download/apex-legends-all-characters_bWptZ2mUmZqaraWkpJRmbmdlrWZlbWU.jpg"
@@ -125,37 +126,33 @@ async def show_maps(message: types.Message):
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, timeout=15) as response:
-                res_text = await response.text()
+                data = await response.json()
                 
-                if "Slow down" in res_text:
-                    return await message.answer("⏳ Лимит! Подождите 10 сек.")
-                
-                data = json.loads(res_text)
                 br = data.get('battle_royale', {}).get('current', {})
                 rnk = data.get('ranked', {}).get('current', {})
                 
-                # Карта для отображения картинки (берем из рейтинга)
-                map_name_raw = rnk.get('map', 'Unknown')
+                cur_map_rnk = rnk.get('map', 'Unknown')
                 
+                # Собираем текст
                 caption = (
                     f"🎮 **ОБЫЧНЫЕ:** {MAP_TRANSLATION.get(br.get('map'), br.get('map'))}\n"
                     f"⏱ Осталось: `{br.get('remainingTimer')}`\n\n"
-                    f"🏆 **РЕЙТИНГ:** {MAP_TRANSLATION.get(map_name_raw, map_name_raw)}\n"
+                    f"🏆 **РЕЙТИНГ:** {MAP_TRANSLATION.get(cur_map_rnk, cur_map_rnk)}\n"
                     f"⏱ До смены: `{rnk.get('remainingTimer')}`"
                 )
-                
-                # Пробуем найти картинку по названию
-                img_url = MAP_IMAGES.get(map_name_raw, DEFAULT_MAP_IMG)
-                
-                try:
-                    # Пытаемся отправить фото
-                    await message.answer_photo(photo=img_url, caption=caption, parse_mode="Markdown")
-                except Exception as e:
-                    # Если Telegram все равно не ест ссылку, шлем текст и пишем в логи причину
-                    print(f"Photo error: {e}")
-                    await message.answer(caption, parse_mode="Markdown")
+
+                # Выбираем картинку
+                photo_url = MAP_IMAGES.get(cur_map_rnk, "https://i.imgur.com/S8zX1H0.png")
+
+                # ВАЖНО: Добавляем небольшую задержку перед отправкой, чтобы Vercel не захлебнулся
+                await message.answer_photo(
+                    photo=photo_url,
+                    caption=caption,
+                    parse_mode="Markdown"
+                )
         except Exception as e:
-            await message.answer(f"⚠️ Ошибка API: `{str(e)[:50]}`")
+            # Если даже так не грузит, выводим текст ошибки, чтобы понять ПОЧЕМУ
+            await message.answer(f"⚠️ Ошибка отображения: {str(e)[:50]}")
             
             
 @dp.message(F.text == "📊 Мета Легенд")
