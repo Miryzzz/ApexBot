@@ -61,7 +61,8 @@ async def cmd_start(message: types.Message):
 
 # --- КНОПКИ МЕНЮ ---
 
-@dp.message(F.text == "🏆 Рейтинг (RP)", Command("predator"))
+@dp.message(F.text == "🏆 Рейтинг (RP)")
+@dp.message(Command("predator"))
 async def show_pred(message: types.Message):
     url = f"https://api.mozambiquehe.re/predator?auth={APEX_API_KEY}"
     async with aiohttp.ClientSession() as session:
@@ -85,7 +86,8 @@ async def show_pred(message: types.Message):
         except:
             await message.answer("⚠️ Не удалось загрузить данные рейтинга.")
 
-@dp.message(F.text == "🗺 Карты", Command("map"))
+@dp.message(F.text == "🗺 Карты")
+@dp.message(Command("map"))
 async def show_maps(message: types.Message):
     url = f"https://api.mozambiquehe.re/maprotation?auth={APEX_API_KEY}&version=2"
     async with aiohttp.ClientSession() as session:
