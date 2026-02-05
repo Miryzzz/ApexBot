@@ -25,13 +25,13 @@ MAP_TRANSLATION = {
 }
 
 MAP_IMAGES = {
-    "World's Edge": "https://i.imgur.com/7Yf8Y8W.png",
-    "Storm Point": "https://i.imgur.com/GzBfHjV.png",
-    "Broken Moon": "https://i.imgur.com/6XwYj2Y.png",
-    "Olympus": "https://i.imgur.com/8Fp7VPr.png",
-    "Kings Canyon": "https://i.imgur.com/vH9Z8G1.png",
-    "E-District": "https://i.imgur.com/H0V2DSu.png",
-    "District": "https://i.imgur.com/H0V2DSu.png"
+    "World's Edge": "https://media.contentapi.ea.com/content/dam/apex-legends/images/2022/07/apex-map-v3-worlds-edge.png.adapt.1920w.png",
+    "Storm Point": "https://media.contentapi.ea.com/content/dam/apex-legends/images/2021/10/apex-media-news-storm-point-map-thumbnail.jpg.adapt.1920w.jpg",
+    "Broken Moon": "https://media.contentapi.ea.com/content/dam/apex-legends/images/2022/10/apex-new-map-broken-moon-thumbnail.jpg.adapt.1920w.jpg",
+    "Olympus": "https://media.contentapi.ea.com/content/dam/apex-legends/images/2020/11/apex-media-news-olympus-map-thumbnail.jpg.adapt.1920w.jpg",
+    "Kings Canyon": "https://media.contentapi.ea.com/content/dam/apex-legends/images/2020/06/apex-media-news-kings-canyon-map-thumbnail.jpg.adapt.1920w.jpg",
+    "E-District": "https://media.contentapi.ea.com/content/dam/apex-legends/images/2024/07/apex-e-district-map-thumbnail.jpg.adapt.1920w.jpg",
+    "District": "https://media.contentapi.ea.com/content/dam/apex-legends/images/2024/07/apex-e-district-map-thumbnail.jpg.adapt.1920w.jpg"
 }
 
 DEFAULT_MAP_IMG = "https://images.wallpapersden.com/image/download/apex-legends-all-characters_bWptZ2mUmZqaraWkpJRmbmdlrWZlbWU.jpg"
@@ -126,33 +126,35 @@ async def show_maps(message: types.Message):
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, timeout=15) as response:
-                data = await response.json()
+                # Читаем текст, чтобы поймать ошибку лимита
+                res_text = await response.text()
+                if "Slow down" in res_text:
+                    await message.answer("⏳ Слишком много запросов! Подождите 10 секунд.")
+                    return
                 
+                data = json.loads(res_text)
                 br = data.get('battle_royale', {}).get('current', {})
                 rnk = data.get('ranked', {}).get('current', {})
                 
-                cur_map_rnk = rnk.get('map', 'Unknown')
+                current_ranked_map = rnk.get('map', 'Unknown')
                 
-                # Собираем текст
                 caption = (
                     f"🎮 **ОБЫЧНЫЕ:** {MAP_TRANSLATION.get(br.get('map'), br.get('map'))}\n"
-                    f"⏱ Осталось: `{br.get('remainingTimer')}`\n\n"
-                    f"🏆 **РЕЙТИНГ:** {MAP_TRANSLATION.get(cur_map_rnk, cur_map_rnk)}\n"
-                    f"⏱ До смены: `{rnk.get('remainingTimer')}`"
+                    f"⏳ Осталось: `{br.get('remainingTimer')}`\n\n"
+                    f"🏆 **РЕЙТИНГ:** {MAP_TRANSLATION.get(current_ranked_map, current_ranked_map)}\n"
+                    f"⏳ Смена через: `{rnk.get('remainingTimer')}`"
                 )
 
-                # Выбираем картинку
-                photo_url = MAP_IMAGES.get(cur_map_rnk, "https://i.imgur.com/S8zX1H0.png")
+                # Выбираем картинку из нашего словаря
+                photo_url = MAP_IMAGES.get(current_ranked_map, "https://media.contentapi.ea.com/content/dam/apex-legends/common/apex-legends-logo-desktop.svg")
 
-                # ВАЖНО: Добавляем небольшую задержку перед отправкой, чтобы Vercel не захлебнулся
-                await message.answer_photo(
-                    photo=photo_url,
-                    caption=caption,
-                    parse_mode="Markdown"
-                )
+                try:
+                    await message.answer_photo(photo=photo_url, caption=caption, parse_mode="Markdown")
+                except Exception as e:
+                    # Если фото всё равно не уходит, отправляем хотя бы текст
+                    await message.answer(f"{caption}\n\n⚠️ (Картинка не загрузилась: {str(e)[:30]})", parse_mode="Markdown")
         except Exception as e:
-            # Если даже так не грузит, выводим текст ошибки, чтобы понять ПОЧЕМУ
-            await message.answer(f"⚠️ Ошибка отображения: {str(e)[:50]}")
+            await message.answer(f"⚠️ Ошибка API: `{str(e)[:50]}`")
             
             
 @dp.message(F.text == "📊 Мета Легенд")
