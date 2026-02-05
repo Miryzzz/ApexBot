@@ -8,6 +8,7 @@ from aiogram.types import Update, ReplyKeyboardMarkup, KeyboardButton
 from http.server import BaseHTTPRequestHandler
 
 # --- 1. НАСТРОЙКИ ---
+
 TELEGRAM_TOKEN = "8205546825:AAE_f2o4Flap-omNJK_6R61iHHZjEbbghsE"
 APEX_API_KEY = "02bc8279638509d6997130e7fc25273f"
 
@@ -20,11 +21,8 @@ MAP_TRANSLATION = {
     "Broken Moon": "🌒 Расколотая Луна",
     "Olympus": "☁️ Олимп",
     "Kings Canyon": "🦖 Каньон Кингс",
-    "District": "🏙 Район",
-    "E-District": "🌃 Э-Район",
+    "E-District": "🌃 Квартал Электро",
 }
-
-
 
 MAP_IMAGES = {
     "World's Edge": "https://apexlegendsstatus.com/assets/maps/Worlds_Edge.png",
@@ -32,11 +30,11 @@ MAP_IMAGES = {
     "Broken Moon": "https://apexlegendsstatus.com/assets/maps/Broken_Moon.png",
     "Olympus": "https://apexlegendsstatus.com/assets/maps/Olympus.png",
     "Kings Canyon": "https://apexlegendsstatus.com/assets/maps/Kings_Canyon.png",
-    "District": "https://apexlegendsstatus.com/assets/maps/District.png",
     "E-District": "https://apexlegendsstatus.com/assets/maps/District.png"
 }
 
 # --- 2. МЕНЮ ---
+
 def get_main_menu():
     kb = [
         [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="🗺 Карты")],
@@ -52,7 +50,6 @@ def get_main_menu():
 
 # --- 3. ФУНКЦИИ ---
 
-
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     await message.answer(
@@ -65,7 +62,6 @@ async def cmd_start(message: types.Message):
 
 # --- КНОПКИ МЕНЮ ---
 
-
 @dp.message(F.text == "🗺 Карты")
 async def show_maps(message: types.Message):
     url = f"https://api.mozambiquehe.re/maprotation?auth={APEX_API_KEY}&version=2"
@@ -74,23 +70,20 @@ async def show_maps(message: types.Message):
             async with session.get(url, timeout=10) as response:
                 data = await response.json()
                 
-                # 1. ДАННЫЕ ПАБЛИКА (БЫСТРАЯ РОТАЦИЯ)
                 pub = data['battle_royale']['current']
                 pub_map = pub['map']
                 pub_img = MAP_IMAGES.get(pub_map, "https://apexlegendsstatus.com/assets/maps/Worlds_Edge.png")
                 pub_ru = MAP_TRANSLATION.get(pub_map, pub_map)
                 
-                # 2. ДАННЫЕ РЕЙТИНГА (СУТОЧНАЯ РОТАЦИЯ)
                 rnk = data['ranked']['current']
                 rnk_map = rnk['map']
                 rnk_img = MAP_IMAGES.get(rnk_map, "https://apexlegendsstatus.com/assets/maps/Worlds_Edge.png")
                 rnk_ru = MAP_TRANSLATION.get(rnk_map, rnk_map)
 
-                # Формируем общий текст
                 caption = (
                     "🎮 **ОБЫЧНЫЕ МАТЧИ (Pubs):**\n"
                     f"📍 Сейчас: **{pub_ru}**\n"
-                    f"⏱ Осталось: `{pub['remainingTimer']}`\n"
+                    f"⏱ До смены: `{pub['remainingTimer']}`\n"
                     f"🔜 След.: _{MAP_TRANSLATION.get(data['battle_royale']['next']['map'])}_\n\n"
                     "--- --- --- --- ---\n\n"
                     "🏆 **РЕЙТИНГОВЫЕ МАТЧИ (Ranked):**\n"
@@ -121,7 +114,6 @@ async def show_predator(message: types.Message):
                 
                 data = await response.json()
                 
-                # Проверяем наличие данных для PC
                 rp_data = data.get('RP', {})
                 pc = rp_data.get('PC', {})
                 
@@ -133,14 +125,13 @@ async def show_predator(message: types.Message):
                 total = pc.get('totalMastersAndPreds', 'N/A')
                 
                 caption = (
-                    "🎖 **ЛИМИТЫ ХИЩНИКОВ (PC):**\n\n"
+                    "🎖 **ЛИМИТЫ Predator (PC):**\n\n"
                     f"🔴 **Порог Predator:** `{val}` RP\n"
-                    f"🟣 **Мастеров и Хищников всего:** `{total}`\n\n"
-                    " Чтобы попасть в топ-750, нужно набрать больше RP, чем у последнего Хищника."
+                    f"🟣 **Мастеров и Predator всего:** `{total}`\n\n"
+                    " Чтобы попасть в топ-750, нужно набрать больше RP, чем у последнего Predatorа."
                 )
                 await message.answer_photo(photo=pred_img, caption=caption, parse_mode="Markdown")
         except Exception as e:
-            # Если случилась ошибка, бот напишет её часть для диагностики
             await message.answer(f"⚠️ Ошибка связи: {str(e)[:30]}...")
             
             
@@ -185,9 +176,6 @@ async def show_store(message: types.Message):
         "🛒 Полный ассортимент доступен только в игре.\nПроверяй ротацию бандлов каждый вторник!"
     )
 
-
-
-
 # --- 1. ОБРАБОТКА КНОПКИ В МЕНЮ ---
 @dp.message(F.text == "📊 Статистика")
 async def stats_help(message: types.Message):
@@ -220,7 +208,6 @@ async def get_player_stats(message: types.Message):
                     await msg_wait.edit_text("❌ Игрок не найден. Убедись, что ник верный и это PC версия.")
                     return
 
-                # Собираем данные
                 glob = data.get("global", {})
                 rank = glob.get("rank", {})
                 real_time = data.get("realtime", {})
@@ -230,8 +217,7 @@ async def get_player_stats(message: types.Message):
                 rank_name = rank.get("rankName", "Unranked")
                 rank_div = rank.get("rankDiv", "")
                 rank_score = rank.get("rankScore", 0)
-                
-                # Ссылка на иконку ранга и фон легенды
+
                 rank_icon = rank.get("rankImg")
                 selected_legend = data.get("legends", {}).get("selected", {})
                 legend_name = selected_legend.get("LegendName", "Unknown")
@@ -247,7 +233,6 @@ async def get_player_stats(message: types.Message):
                     f"📈 _Статистика обновлена из API Синдиката_"
                 )
 
-                # Удаляем временное сообщение и отправляем красивое фото с текстом
                 await msg_wait.delete()
                 
                 if rank_icon:
@@ -259,7 +244,7 @@ async def get_player_stats(message: types.Message):
             await msg_wait.edit_text(f"⚠️ Ошибка API. Возможно, сервер перегружен.")
 
 
-# --- VERCEL HANDLER ---
+# --- VERCEL ---
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         content_length = int(self.headers["Content-Length"])
