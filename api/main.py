@@ -62,102 +62,70 @@ async def cmd_start(message: types.Message):
 
 # --- КНОПКИ МЕНЮ ---
 
+# --- КАРТЫ (НАДЕЖНАЯ ВЕРСИЯ) ---
 @dp.message(F.text == "🗺 Карты")
 @dp.message(Command("map"))
 async def show_maps(message: types.Message):
     url = f"https://api.mozambiquehe.re/maprotation?auth={APEX_API_KEY}&version=2"
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, timeout=10) as response:
-                if response.status != 200:
-                    await message.answer("📡 Сервер API временно недоступен. Попробуйте через минуту.")
+            async with session.get(url, timeout=15) as response:
+                raw_text = await response.text()
+                
+                if response.status == 403:
+                    await message.answer("❌ Ошибка: API Ключ неверный или заблокирован.")
                     return
-                
-                data = await response.json()
-                
-                # Безопасное извлечение данных (используем .get чтобы не было ошибки)
-                br = data.get('battle_royale', {})
-                ranked = data.get('ranked', {})
-
-                if not br or not ranked:
-                    await message.answer("⚠️ Данные о картах сейчас обновляются. Зайдите чуть позже!")
+                if "Slow down" in raw_text:
+                    await message.answer("⏳ Слишком много запросов! Подождите 10-15 сек.")
                     return
 
-                # Собираем данные паблика
-                pub_cur = br.get('current', {})
-                pub_map = pub_cur.get('map', 'Unknown')
-                pub_timer = pub_cur.get('remainingTimer', '??:??')
-                pub_next = br.get('next', {}).get('map', 'Unknown')
+                data = json.loads(raw_text)
+                br = data.get('battle_royale', {}).get('current', {})
+                rnk = data.get('ranked', {}).get('current', {})
+
+                m_name = rnk.get('map', 'Unknown')
+                img = MAP_IMAGES.get(m_name, "https://apexlegendsstatus.com/assets/maps/Worlds_Edge.png")
                 
-                # Собираем данные рейтинга
-                rank_cur = ranked.get('current', {})
-                rank_map = rank_cur.get('map', 'Unknown')
-                rank_timer = rank_cur.get('remainingTimer', '??:??')
-
-                img_url = MAP_IMAGES.get(rank_map, MAP_IMAGES.get(pub_map, "https://apexlegendsstatus.com/assets/maps/Worlds_Edge.png"))
-
                 caption = (
-                    "🎮 **ОБЫЧНЫЕ МАТЧИ:**\n"
-                    f"📍 Сейчас: **{MAP_TRANSLATION.get(pub_map, pub_map)}**\n"
-                    f"⏱ До смены: `{pub_timer}`\n"
-                    f"🔜 След.: _{MAP_TRANSLATION.get(pub_next, pub_next)}_\n\n"
-                    "━━━━━━━━━━━━━━\n\n"
-                    "🏆 **РЕЙТИНГОВЫЕ МАТЧИ:**\n"
-                    f"📍 Сейчас: **{MAP_TRANSLATION.get(rank_map, rank_map)}**\n"
-                    f"⏱ До смены: `{rank_timer}`"
+                    f"🎮 **Обычные:** {MAP_TRANSLATION.get(br.get('map'), br.get('map'))}\n"
+                    f"⏱ Осталось: `{br.get('remainingTimer')}`\n\n"
+                    f"🏆 **Рейтинг:** {MAP_TRANSLATION.get(m_name, m_name)}\n"
+                    f"⏱ До смены: `{rnk.get('remainingTimer')}`"
                 )
-
-                await message.answer_photo(photo=img_url, caption=caption, parse_mode="Markdown")
+                await message.answer_photo(photo=img, caption=caption, parse_mode="Markdown")
 
         except Exception as e:
-            print(f"Error in show_maps: {e}") # Это уйдет в логи Vercel
-            await message.answer("⚠️ Произошла ошибка при чтении данных.")
+            await message.answer(f"⚠️ Ошибка API: `{str(e)[:50]}`")
 
-
+# --- РЕЙТИНГ (НАДЕЖНАЯ ВЕРСИЯ) ---
 @dp.message(F.text == "🏆 Рейтинг (RP)")
 @dp.message(Command("predator"))
 async def show_predator(message: types.Message):
     url = f"https://api.mozambiquehe.re/predator?auth={APEX_API_KEY}"
-    pred_img = "https://apexlegendsstatus.com/assets/ranks/apex_predator.png"
-    
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, timeout=10) as response:
-                # Получаем ответ как текст
-                res_text = await response.text()
+            async with session.get(url, timeout=15) as response:
+                raw_text = await response.text()
                 
-                # Проверяем, не ругается ли API на частоту запросов
-                if "Slow down" in res_text or "Too many requests" in res_text:
-                    await message.answer("⏳ **Слишком много запросов!**\nПодождите 10 секунд, Бот не успевает обрабатывать данные.")
+                if "Slow down" in raw_text:
+                    await message.answer("⏳ Лимит запросов! Подожди немного.")
                     return
-
-                # Пытаемся превратить текст в JSON
-                try:
-                    data = json.loads(res_text)
-                except json.JSONDecodeError:
-                    await message.answer("⚠️ **Ошибка сервера.** API прислало непонятный ответ. Попробуйте позже.")
-                    return
-
-                # Если в JSON есть ошибка от самого сервиса
-                if "Error" in data:
-                    await message.answer(f"❌ **Ошибка API:** {data['Error']}")
-                    return
-
-                # Если всё ок, выводим данные
+                
+                data = json.loads(raw_text)
                 pc = data.get('RP', {}).get('PC', {})
-                val = pc.get('val', 'N/A')
-                total = pc.get('totalMastersAndPreds', 'N/A')
                 
                 caption = (
                     "🎖 **ЛИМИТЫ ХИЩНИКОВ (PC):**\n\n"
-                    f"🔴 **Порог Predator:** `{val}` RP\n"
-                    f"🟣 **Мастеров и Хищников:** `{total}`\n\n"
-                    "Чтобы попасть в топ-750, нужно перебить текущий порог RP."
+                    f"🔴 **Порог Predator:** `{pc.get('val', 'N/A')}` RP\n"
+                    f"🟣 **Мастеров и Хищников:** `{pc.get('totalMastersAndPreds', 'N/A')}`"
                 )
-                await message.answer_photo(photo=pred_img, caption=caption, parse_mode="Markdown")
-                
+                await message.answer_photo(
+                    photo="https://apexlegendsstatus.com/assets/ranks/apex_predator.png", 
+                    caption=caption, 
+                    parse_mode="Markdown"
+                )
         except Exception as e:
-            await message.answer("📡 Не удалось связаться с сервером. Проверьте соединение.")
+            await message.answer(f"⚠️ Ошибка рейтинга: `{str(e)[:50]}`")
             
             
 @dp.message(F.text == "📊 Мета Легенд")
