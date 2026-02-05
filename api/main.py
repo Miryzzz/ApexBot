@@ -228,18 +228,18 @@ async def show_store(message: types.Message):
         "🛒 Полный ассортимент доступен только в игре.\nПроверяй ротацию бандлов каждый вторник!"
     )
 
-# --- 1. ОБРАБОТКА КНОПКИ В МЕНЮ ---
+# --- 1. ОБРАБОТКА КНОПКИ И КОМАНД-ПОДСКАЗОК ---
 @dp.message(F.text == "📊 Статистика")
-@dp.message(Command("stat"))
+@dp.message(Command("stat_help"))
 async def stats_help(message: types.Message):
     await message.answer(
-        "Чтобы узнать статистику, введите команду и ник игрока через пробел.\n\n"
+        "🔎 Чтобы узнать статистику, введите команду и ник игрока.\n\n"
         "Пример: `/stats ImperialHal`",
         parse_mode="Markdown"
     )
 
-# --- 2. КОМАНДА /stats ---
-@dp.message(Command("stats"))
+# --- 2. ОСНОВНАЯ КОМАНДА (ПОНИМАЕТ И /stat И /stats) ---
+@dp.message(Command("stat", "stats"))
 async def get_player_stats(message: types.Message):
     args = message.text.split(maxsplit=1)
     
@@ -255,12 +255,24 @@ async def get_player_stats(message: types.Message):
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, timeout=10) as response:
-                data = await response.json()
-
-                if "Error" in data or response.status != 200:
-                    await msg_wait.edit_text("❌ Игрок не найден. Убедись, что ник верный и это PC версия.")
+                # Читаем как текст для проверки на ошибки лимита
+                res_text = await response.text()
+                
+                if "Slow down" in res_text or "Too many requests" in res_text:
+                    await msg_wait.edit_text("⏳ **Лимит запросов!** Подождите 10 секунд.")
                     return
 
+                try:
+                    data = json.loads(res_text)
+                except json.JSONDecodeError:
+                    await msg_wait.edit_text("⚠️ Ошибка API. Попробуйте позже.")
+                    return
+
+                if "Error" in data:
+                    await msg_wait.edit_text("❌ Игрок не найден или профиль скрыт.")
+                    return
+
+                # Собираем данные
                 glob = data.get("global", {})
                 rank = glob.get("rank", {})
                 real_time = data.get("realtime", {})
@@ -270,11 +282,9 @@ async def get_player_stats(message: types.Message):
                 rank_name = rank.get("rankName", "Unranked")
                 rank_div = rank.get("rankDiv", "")
                 rank_score = rank.get("rankScore", 0)
-
                 rank_icon = rank.get("rankImg")
-                selected_legend = data.get("legends", {}).get("selected", {})
-                legend_name = selected_legend.get("LegendName", "Unknown")
                 
+                selected_legend = data.get("legends", {}).get("selected", {}).get("LegendName", "Unknown")
                 status = "🟢 В игре" if real_time.get("isOnline") == 1 else "🔴 Оффлайн"
 
                 caption = (
@@ -282,19 +292,14 @@ async def get_player_stats(message: types.Message):
                     f"🆙 **Уровень:** {level} | {status}\n\n"
                     f"🏆 **Ранг:** {rank_name} {rank_div}\n"
                     f"💎 **Очки (RP):** {rank_score}\n"
-                    f"🎭 **Активный герой:** {legend_name}\n\n"
-                    f"📈 _Статистика обновлена из API Синдиката_"
+                    f"🎭 **Герой:** {selected_legend}"
                 )
 
                 await msg_wait.delete()
-                
-                if rank_icon:
-                    await message.answer_photo(photo=rank_icon, caption=caption, parse_mode="Markdown")
-                else:
-                    await message.answer(caption, parse_mode="Markdown")
+                await message.answer_photo(photo=rank_icon, caption=caption, parse_mode="Markdown")
 
         except Exception as e:
-            await msg_wait.edit_text(f"⚠️ Ошибка API. Возможно, сервер перегружен.")
+            await msg_wait.edit_text(f"⚠️ Ошибка связи с API.")
 
 
 # --- VERCEL ---
