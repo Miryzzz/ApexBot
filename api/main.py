@@ -83,29 +83,33 @@ async def show_predator(message: types.Message):
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(url, timeout=10) as response:
-                if response.status == 403:
-                    await message.answer("🔑 Ошибка: API ключ не подходит. Проверь его в коде!")
+                # Читаем текст ответа, чтобы понять, что там внутри
+                raw_data = await response.text()
+                
+                try:
+                    data = json.loads(raw_data)
+                except json.JSONDecodeError:
+                    await message.answer("⚠️ API прислало странный ответ. Возможно, ведутся технические работы.")
                     return
-                elif response.status == 429:
-                    await message.answer("⏳ Слишком много запросов! Подожди пару секунд.")
+
+                # Проверяем, нет ли ошибки в самом ответе
+                if "Error" in data:
+                    await message.answer(f"❌ Ошибка API: {data.get('Error')}")
                     return
                 
-                data = await response.json()
-                
-                # Извлекаем данные для PC
                 pc = data.get('RP', {}).get('PC', {})
-                pc_val = pc.get('val', "Неизвестно")
-                masters = pc.get('totalMastersAndPreds', "Неизвестно")
+                pc_val = pc.get('val', "N/A")
+                masters = pc.get('totalMastersAndPreds', "N/A")
                 
                 text = (
-                    "🎖 **Текущие пороги рангов (PC):**\n\n"
-                    f"🔴 **Apex Predator:** `{pc_val}` RP\n"
-                    f"🟣 **Мастеров и Хищников всего:** `{masters}`\n\n"
-                    " Чтобы попасть в топ-750, тебе нужно перебить это число RP!"
+                    "🎖 **Статус Predator (PC):**\n\n"
+                    f"🔴 **Порог:** `{pc_val}` RP\n"
+                    f"🟣 **Мастеров:** `{masters}`\n\n"
+                    "_Данные от Mozambiquehe.re_"
                 )
                 await message.answer(text, parse_mode="Markdown")
         except Exception as e:
-            await message.answer(f"⚠️ Ошибка связи с API: {str(e)[:50]}")
+            await message.answer(f"⚠️ Ошибка связи: {str(e)}")
 
 
 @dp.message(F.text == "📰 Новости")
