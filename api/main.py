@@ -279,7 +279,8 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"ok")
 
-    def do_GET(self):
+def do_GET(self):
         self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
         self.end_headers()
-        self.wfile.write(b"Apex Bot is Running!")
+        self.wfile.write(b'Apex Bot is Running!')
