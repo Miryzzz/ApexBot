@@ -279,8 +279,8 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"ok")
 
-def do_GET(self):
+    def do_GET(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain; charset=utf-8')
         self.end_headers()
-        self.wfile.write("Бот работает! Отправь сообщение в Telegram.".encode('utf-8'))
+        self.wfile.write("Бот работает!".encode('utf-8'))
