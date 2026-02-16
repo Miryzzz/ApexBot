@@ -7,6 +7,8 @@ from aiogram.filters import Command
 from aiogram.types import Update, ReplyKeyboardMarkup, KeyboardButton
 from http.server import BaseHTTPRequestHandler
 
+from bs4 import BeautifulSoup
+
 # --- 1. НАСТРОЙКИ ---
 TELEGRAM_TOKEN = "8205546825:AAE_f2o4Flap-omNJK_6R61iHHZjEbbghsE"
 APEX_API_KEY = "02bc8279638509d6997130e7fc25273f"
@@ -54,6 +56,36 @@ async def cmd_start(message: types.Message):
         parse_mode="Markdown",
         reply_markup=get_main_menu(),
     )
+
+
+async def parse_tracker_meta():
+    url = "https://apex.tracker.gg/apex/insights"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    
+    async with aiohttp.ClientSession(headers=headers) as session:
+        try:
+            async with session.get(url, timeout=15) as response:
+                if response.status != 200:
+                    return None
+                
+                html = await response.text()
+                soup = BeautifulSoup(html, "lxml")
+                
+                legends_data = []
+                rows = soup.select(".insight-bar") 
+                
+                for row in rows:
+                    name = row.select_one(".name").text.strip()
+                    value = row.select_one(".value").text.strip() 
+                    legends_data.append(f"**{name}**: `{value}`")
+                
+                return legends_data[:10] 
+        except Exception as e:
+            print(f"Parsing error: {e}")
+            return None
+
 
 
 # --- КНОПКИ МЕНЮ ---
@@ -149,35 +181,29 @@ async def show_maps(message: types.Message):
 
 
 @dp.message(F.text == "📊 Мета Легенд")
+@dp.message(Command("meta"))
 async def show_meta(message: types.Message):
-    url = f"https://api.mozambiquehe.re/stats?auth={APEX_API_KEY}"
+    msg_wait = await message.answer("🔍 Парсю данные с Tracker.gg... подождите.")
     
-    msg_wait = await message.answer("📊 Загружаю актуальную мету...")
+    meta_list = await parse_tracker_meta()
     
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url, timeout=10) as response:
-                data = await response.json()
-                
-                pick_stats = []
-                for name, stats in data.items():
-                    pick_stats.append({
-                        "name": name,
-                        "rate": stats.get("relative_percentage", 0)
-                    })
+    if not meta_list:
+        await msg_wait.edit_text("❌ Не удалось спарсить данные с сайта. Возможно, защита Cloudflare заблокировала запрос.")
+        return
 
-                pick_stats.sort(key=lambda x: x["rate"], reverse=True)
+    text = "📊 **АКТУАЛЬНЫЙ ПИК-РЕЙТ (с Tracker.gg):**\n\n"
+    icons = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    
+    for i, line in enumerate(meta_list):
+        text += f"{icons[i]} {line}\n"
+    
+    text += "\n🔗 [Источник: Tracker.gg](https://apex.tracker.gg/apex/insights)"
+    
+    await msg_wait.edit_text(text, parse_mode="Markdown", disable_web_page_preview=True)
 
-                text = "📊 **ТОП-10 ПОПУЛЯРНЫХ ЛЕГЕНД:**\n\n"
-                for i, legend in enumerate(pick_stats[:10], 1):
-                    emoji = "🔥" if i == 1 else "🔹"
-                    text += f"{emoji} {i}. **{legend['name']}** — `{legend['rate']}%` \n"
-
-                text += "\n📈 *Данные обновляются в реальном времени.*"
-                
-                await msg_wait.edit_text(text, parse_mode="Markdown")
-        except:
-            await msg_wait.edit_text("⚠️ Не удалось получить данные от API.")
+@dp.message(Command("start"))
+async def cmd_start(message: types.Message):
+    await message.answer("Бот готов к работе!", reply_markup=get_main_menu())
 
 
 # --- 1. ОБРАБОТКА КНОПКИ И КОМАНД-ПОДСКАЗОК ---
