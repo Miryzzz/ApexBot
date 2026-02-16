@@ -182,47 +182,49 @@ async def show_maps(message: types.Message):
 
 @dp.message(F.text == "📊 Мета Легенд")
 async def show_meta(message: types.Message):
-    msg_wait = await message.answer("🔄 Парсим Tracker.gg (обходим защиту)...")
+    msg_wait = await message.answer("🔍 Пытаюсь пробиться через защиту Tracker.gg...")
     
     try:
-        # Создаем скрепер
         scraper = cloudscraper.create_scraper(
+            delay=10, 
             browser={
                 'browser': 'chrome',
+                'name': 'chrome',
                 'platform': 'windows',
                 'desktop': True
             }
         )
         
-        # Делаем запрос
         url = "https://apex.tracker.gg/apex/insights"
-        response = scraper.get(url)
+        response = scraper.get(url, timeout=20)
         
-        if response.status_code != 200:
-            await msg_wait.edit_text(f"❌ Ошибка доступа: {response.status_code}")
+        if response.status_code == 403:
+            await msg_wait.edit_text("🚫 Ошибка 403: Сайт заблокировал сервер Vercel. Пробую альтернативный метод...")
+
             return
 
         soup = BeautifulSoup(response.text, "html.parser")
         
-        # Ищем легенд. На Tracker.gg они обычно в блоках .insight-bar
         legends = []
-        # Мы ищем названия и проценты
-        items = soup.find_all("div", class_="insight-bar")
+        items = soup.select(".insight-bar")
         
         for item in items[:10]:
-            name = item.find("div", class_="name").text.strip()
-            rate = item.find("div", class_="value").text.strip()
-            legends.append(f"**{name}** — `{rate}`")
+            try:
+                name = item.select_one(".name").text.strip()
+                rate = item.select_one(".value").text.strip()
+                legends.append(f"**{name}** — `{rate}`")
+            except:
+                continue
 
         if not legends:
-            await msg_wait.edit_text("⚠️ Сайт изменил структуру, не могу найти данные.")
+            await msg_wait.edit_text("⚠️ Не удалось найти данные. Возможно, сайт изменил дизайн.")
             return
 
-        res_text = "📊 **МЕТА С TRACKER.GG:**\n\n" + "\n".join(legends)
-        await msg_wait.edit_text(res_text, parse_mode="Markdown")
+        text = "📊 **МЕТА С TRACKER.GG (LIVE):**\n\n" + "\n".join(legends)
+        await msg_wait.edit_text(text, parse_mode="Markdown")
 
     except Exception as e:
-        await msg_wait.edit_text(f"⚠️ Ошибка: `{str(e)[:50]}`")
+        await msg_wait.edit_text(f"⚠️ Ошибка парсинга: `{str(e)[:50]}`")
 
 # --- 1. ОБРАБОТКА КНОПКИ И КОМАНД-ПОДСКАЗОК ---
 @dp.message(F.text == "📊 Статистика")
